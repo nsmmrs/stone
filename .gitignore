@@ -16,3 +16,4 @@ parser.out
 *.swp
 *~
 .pytest_cache/
+output/

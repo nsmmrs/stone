@@ -127,7 +127,7 @@ class UnstoneBackend(CodeBackend):
                 if args:
                     s += '(' + ', '.join(args) + ')'
                 break
-        if data_type.nullable:
+        if getattr(data_type, 'nullable', False):
             s += '?'
         return s
 
