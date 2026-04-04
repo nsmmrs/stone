@@ -636,8 +636,7 @@ Here's a minimal example::
 Examples
 ========
 
-The following examples can all be found in the ``stone/example/backend``
-folder.
+The following examples can all be found in the ``stone/example`` folder.
 
 Example 1: List All Namespaces
 ------------------------------
@@ -660,11 +659,11 @@ where the output of our ``emit*()`` calls go (See more emit_methods_).
 Run the backend from the root of the Stone folder using the example specs
 we've provided::
 
-    $ stone example/backend/ex1/ex1.stoneg.py output/ex1 example/api/dbx-core/*.stone
+    $ stone example/backend/ex1.stoneg.py output/ex1 example/api/*.stone
 
 Now examine the contents of the output::
 
-    $ cat example/backend/ex1/ex1.out
+    $ cat output/ex1/ex1.out
     files
     users
 
@@ -698,7 +697,7 @@ class to ``True``.
 Run the backend from the root of the Stone folder using the example specs
 we've provided::
 
-    $ stone example/backend/ex2/ex2.stoneg.py output/ex2 example/api/dbx-core/*.stone
+    $ stone example/backend/ex2.stoneg.py output/ex2 example/api/*.stone
 
 Now examine the contents of the output::
 

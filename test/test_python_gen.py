@@ -142,7 +142,7 @@ class TestDropInModules(unittest.TestCase):
 
         t = bv.Timestamp('%a, %d %b %Y %H:%M:%S +0000')
         self.assertRaises(bv.ValidationError, lambda: t.validate('abcd'))
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
         t.validate(now)
         then = datetime.datetime(1776, 7, 4, 12, 0, 0)
         t.validate(then)
@@ -218,7 +218,7 @@ class TestDropInModules(unittest.TestCase):
         self.assertEqual(json_encode(bv.UInt32(), True), json.dumps(1))
         self.assertEqual(json_encode(bv.Boolean(), True), json.dumps(True))
         f = '%a, %d %b %Y %H:%M:%S +0000'
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
         self.assertEqual(json_encode(bv.Timestamp('%a, %d %b %Y %H:%M:%S +0000'), now),
                          json.dumps(now.strftime(f)))
         b = b'\xff' * 5
@@ -410,7 +410,7 @@ class TestDropInModules(unittest.TestCase):
                           lambda: json_decode(bv.Boolean(), json.dumps(1)))
 
         f = '%a, %d %b %Y %H:%M:%S +0000'
-        now = datetime.datetime.utcnow().replace(microsecond=0)
+        now = datetime.datetime.now(datetime.UTC).replace(microsecond=0, tzinfo=None)
         self.assertEqual(json_decode(bv.Timestamp('%a, %d %b %Y %H:%M:%S +0000'),
                                      json.dumps(now.strftime(f))),
                          now)

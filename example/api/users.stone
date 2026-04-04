@@ -14,12 +14,6 @@ struct Space
     datastores UInt64
         "The user's used quota in datastores (bytes)."
 
-    example default
-        quota=1000000
-        private=1000
-        shared=500
-        datastores=42
-
 struct Team
     "Information about a team."
 
@@ -27,10 +21,6 @@ struct Team
         "The team's unique ID."
     name String
         "The name of the team."
-
-    example default
-        id="dbtid:AAFdgehTzw7WlXhZJsbGCLePe8RvQGYDr-I"
-        name="Acme, Inc."
 
 # TODO(kelkabany): Consider moving display_name to BasicAccountInfo as account_name
 
@@ -48,12 +38,6 @@ struct Name
     display_name String
         "A name that can be used directly to represent the name of a user's
         Dropbox account."
-
-    example default
-        given_name="Franz"
-        surname="Ferdinand"
-        familiar_name="Franz Ferdinand"
-        display_name="Franz Ferdinand (Personal)"
 
 struct BasicAccountInfo
     "Basic information about a user's account."
@@ -80,25 +64,8 @@ struct MeInfo extends BasicAccountInfo
         "If this account is a member of a team."
     is_paired Boolean
         "Whether the user has a personal and work account. If the authorized
-        account is personal, then :field:`team` will always be :val:`Null`,
+        account is personal, then :field:`team` will always be :val:`null`,
         but :field:`is_paired` will indicate if a work account is linked."
-
-    example default "Paired account"
-        account_id="dbid:AAH4f99T0taONIb-OurWxbNQ6ywGRopQngc"
-        email="franz@dropbox.com"
-        country="US"
-        locale="en"
-        referral_link="https://db.tt/ZITNuhtI"
-        is_paired=true
-
-    example unpaired "Unpaired account"
-        account_id="dbid:AAH4f99T0taONIb-OurWxbNQ6ywGRopQngc"
-        email="franz@gmail.com"
-        country="US"
-        locale="en"
-        referral_link="https://db.tt/ZITNuhtI"
-        team=null
-        is_paired=false
 
 union AccountInfo
     "The amount of detail revealed about an account depends on the user
@@ -114,10 +81,7 @@ struct InfoRequest
 
 union InfoError
     no_account
-        "The specified :field:`account_id` does not exist."
+        "The specified account_id does not exist."
 
 route Info (InfoRequest, AccountInfo, InfoError)
     "Get information about a user's account."
-
-route InfoMe /info/me (Empty, MeInfo, Empty)
-    "Get information about the authorized user's account."

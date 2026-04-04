@@ -3,7 +3,7 @@ namespace files
 struct FileTarget
     path String
         "Path from root. Should be an empty string for root."
-    rev String optional
+    rev String?
         "Revision of target file."
 
 struct FileInfo
@@ -17,25 +17,16 @@ struct SubError
 union DownloadError
     disallowed SubError
     no_file SubError
-    *unknown
 
 route Download (FileTarget, FileInfo, DownloadError)
     "Download a file in a user's Dropbox."
-
-    attrs
-        host="content"
-        style="download"
 
 struct UploadSessionStart
     upload_id String
         "A unique identifier for the upload session."
 
-route UploadStart /upload/start (Empty, UploadSessionStart, Empty)
+route UploadStart /upload/start (Void, UploadSessionStart, Void)
     "Start an upload session."
-
-    attrs
-        host="content"
-        style="upload"
 
 struct UploadAppend
     upload_id String
@@ -50,17 +41,13 @@ struct IncorrectOffsetError
 
 union UploadAppendError
     not_found
-        ":field:`upload_id` was not found."
+        "The upload_id was not found."
     closed
         "Upload session was closed."
     incorrect_offset IncorrectOffsetError
 
-route UploadAppend /upload/append (UploadAppend, Empty, Empty)
+route UploadAppend /upload/append (UploadAppend, Void, Void)
     "Start an upload session."
-
-    attrs
-        host="content"
-        style="upload"
 
 struct UpdateParentRev
     parent_rev String
@@ -71,7 +58,7 @@ union ConflictPolicy
     overwrite
         "On a conflict, the target is overridden."
     add
-        "On a conflict, the upload is rejected. You can call the :route:`Upload`
+        "On a conflict, the upload is rejected. You can call Upload
         endpoint again and attempt a different path."
     update UpdateParentRev
         "On a conflict, only overwrite the target if the parent_rev matches."
@@ -80,15 +67,15 @@ struct UploadCommit
     path String
         "Path in the user's Dropbox to save the file."
     mode ConflictPolicy
-        "The course of action to take if a file already exists at :field:`path`."
+        "The course of action to take if a file already exists at the given path."
     append_to UploadAppend?
         "If specified, the current chunk of data should be appended to an
         existing upload session."
-    autorename Boolean = false optional
+    autorename Boolean = false
         "Whether the file should be autorenamed in the event of a conflict."
-    client_modified_utc UInt64? = null
+    client_modified_utc UInt64?
         "Self reported time of when this file was created or modified."
-    mute Boolean = false optional
+    mute Boolean = false
         "Whether the devices that the user has linked should notify them of the
         new or updated file."
 
@@ -113,8 +100,4 @@ union UploadCommitError
 
 route Upload (UploadCommit, FileInfo, UploadCommitError)
     "Use this endpoint to either finish an ongoing upload session that was
-    begun with :route:`UploadStart` or upload a file in one shot."
-
-    attrs
-        host="content"
-        style="upload"
+    begun with UploadStart or upload a file in one shot."
