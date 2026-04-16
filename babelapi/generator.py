@@ -153,6 +153,45 @@ class Generator(six.with_metaclass(ABCMeta)):
         else:
             self.emit_raw('\n')
 
+    def emit_line(self, s='', trailing_newline=True):
+        """
+        Adds indentation and the input string to the output buffer.
+
+        Args:
+            s (str): The string to output on the current line.
+            trailing_newline (bool): If true, appends a newline after the line.
+        """
+        assert isinstance(s, six.text_type), 's must be a unicode string'
+        assert '\n' not in s, 'String to emit_line cannot contain newline strings.'
+        if trailing_newline:
+            self.emit(s)
+        else:
+            self.output.append('%s%s' % (self.make_indent(), s))
+
+    def emit_empty_line(self):
+        """Emits a blank line."""
+        self.emit()
+
+    def emit_indent(self):
+        """Emits the current indentation without any content or newline."""
+        self.output.append(self.make_indent())
+
+    def emit_(self, s):
+        """Emits the given string with current indentation, without a newline."""
+        assert isinstance(s, six.text_type), 's must be a unicode string'
+        assert '\n' not in s, 'String to emit_ cannot contain newline strings.'
+        self.output.append('%s%s' % (self.make_indent(), s))
+
+    def emit_wrapped_lines(self, s, prefix='', initial_prefix='', subsequent_prefix='',
+            width=80, break_long_words=False, break_on_hyphens=False):
+        """Emits wrapped text to the output buffer."""
+        self.emit_wrapped_text(s, prefix=prefix,
+                               initial_prefix=initial_prefix,
+                               subsequent_prefix=subsequent_prefix,
+                               width=width,
+                               break_long_words=break_long_words,
+                               break_on_hyphens=break_on_hyphens)
+
     def emit_wrapped_text(self, s, prefix='', initial_prefix='', subsequent_prefix='',
             width=80, break_long_words=False, break_on_hyphens=False):
         """

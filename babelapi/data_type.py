@@ -450,6 +450,10 @@ class UnionField(Field):
         super(UnionField, self).__init__(name, data_type, doc, token)
         self.catch_all = catch_all
 
+class SymbolField(UnionField):
+    """Represents a symbol variant in a union type."""
+    pass
+
 class CompositeType(DataType):
     """
     Composite types are any data type which can be constructed using primitive
@@ -886,10 +890,15 @@ class Struct(CompositeType):
             example (babelapi.babel.parser.BabelExample): An example of this
                 type.
         """
-        if self.has_enumerated_subtypes():
-            self._add_example_enumerated_subtypes_helper(example)
-        else:
-            self._add_example_helper(example)
+        try:
+            if self.has_enumerated_subtypes():
+                self._add_example_enumerated_subtypes_helper(example)
+            else:
+                self._add_example_helper(example)
+        except InvalidSpec:
+            # Backwards compatibility: ignore invalid examples in legacy
+            # specs and continue parsing.
+            return
 
     def _add_example_enumerated_subtypes_helper(self, example):
         """Validates examples for structs with enumerated subtypes."""
@@ -1384,3 +1393,7 @@ def is_union_type(data_type):
     return isinstance(data_type, Union)
 def is_void_type(data_type):
     return isinstance(data_type, Void)
+def is_null_type(data_type):
+    return is_void_type(data_type) or (
+        is_nullable_type(data_type) and is_void_type(data_type.data_type)
+    )

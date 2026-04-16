@@ -19,8 +19,10 @@ from babelapi.data_type import (
 from babelapi.data_type import (
     is_composite_type,
     is_null_type,
+    is_nullable_type,
     is_struct_type,
     is_union_type,
+    is_void_type,
 )
 from babelapi.generator import CodeGeneratorMonolingual
 from babelapi.lang.python import PythonTargetLanguage
@@ -61,7 +63,7 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
         """Creates a module for the namespace. All data types are represented
         as classes. The routes are added to a class that takes the name of the
         namespace."""
-        self.emit(base)
+        self.emit_raw(base)
         for data_type in namespace.linearize_data_types():
             if is_struct_type(data_type):
                 self._generate_struct_class(data_type)
@@ -78,10 +80,24 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
                 self._generate_route(namespace, route)
 
     def emit_wrapped_indented_lines(self, s):
-        """Emits wrapped lines. All lines are the first are indented."""
+        """Emits wrapped lines. All lines are indented."""
         self.emit_wrapped_lines(s,
                                 prefix='    ',
-                                first_line_prefix=False)
+                                initial_prefix='    ',
+                                subsequent_prefix='    ',
+                                width=80,
+                                break_long_words=False,
+                                break_on_hyphens=False)
+
+    def _generate_func_arg_list(self, args, compact=False):
+        """Emits a Python function argument list."""
+        self.generate_multiline_list(
+            args,
+            before='(',
+            after=')',
+            compact=compact,
+            sep=',',
+        )
 
     def docf(self, doc):
         """
@@ -162,7 +178,7 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
             this is specified, it is assumed that the return of the function
             will be a tuple of return_data_type and extra_return-arg.
         """
-        fields = input_data_type.fields
+        fields = input_data_type.fields if hasattr(input_data_type, 'fields') else []
         if not fields and not overview:
             # If we don't have an overview or fields, we skip because the
             # documentation is considered too incomplete.
@@ -249,7 +265,7 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
         self.emit_line('def __init__', trailing_newline=False)
         args = ['self']
         for field in data_type.all_fields:
-            if field.optional:
+            if is_nullable_type(field.data_type) or field.has_default:
                 args.append('{}=None'.format(field.name))
             else:
                 args.append(field.name)
@@ -261,15 +277,15 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
         with self.indent():
             self._generate_docstring_for_func(data_type)
 
-            # Call the parent constructor if a super type exists
-            if data_type.super_type:
+            # Call the parent constructor if a parent type exists
+            if data_type.parent_type:
                 self.emit_indent()
                 class_name = self._class_name_for_data_type(data_type)
                 self.emit('super({}, self).__init__('.format(class_name))
-                if data_type.super_type.all_fields:
+                if data_type.parent_type.all_fields:
                     self.emit_empty_line()
                     with self.indent(4):
-                        for field in data_type.super_type.all_fields:
+                        for field in data_type.parent_type.all_fields:
                             self.emit_line('{},'.format(field.name))
                     self.emit_line(')')
                     self.emit_empty_line()
@@ -325,7 +341,7 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
                             .format(
                                 field.name,
                                 self._is_instance_type(field.data_type)))
-                        if field.nullable or field.optional:
+                        if is_nullable_type(field.data_type) or field.has_default:
                             # We conflate nullability and optionality in Python
                             self.emit_line('if {} is not None:'.format(field.name))
                             with self.indent():
@@ -400,8 +416,8 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
         return self.lang.format_class(data_type.name)
 
     def _class_declaration_for_data_type(self, data_type):
-        if data_type.super_type:
-            extends = self._class_name_for_data_type(data_type.super_type)
+        if data_type.parent_type:
+            extends = self._class_name_for_data_type(data_type.parent_type)
         else:
             extends = 'object'
         return 'class {}({}):'.format(self._class_name_for_data_type(data_type), extends)
@@ -444,7 +460,7 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
                 self.emit_wrapped_lines(self.docf(data_type.doc))
                 self.emit_empty_line()
                 for field in data_type.fields:
-                    if isinstance(field, SymbolField):
+                    if isinstance(field, SymbolField) or is_void_type(field.data_type):
                         ivar_doc = ':ivar {}: {}'.format(self.lang.format_class(field.name),
                                                          self.docf(field.doc))
                     elif is_composite_type(field.data_type):
@@ -457,7 +473,7 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
             self.emit_empty_line()
 
             for field in data_type.fields:
-                if isinstance(field, SymbolField):
+                if isinstance(field, SymbolField) or is_void_type(field.data_type):
                     self.emit_line('{} = object()'.format(self.lang.format_class(field.name)))
                 elif is_composite_type(field.data_type):
                     self.emit_line('{0} = {1}'.format(
@@ -502,17 +518,17 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
                 self.emit_empty_line()
 
                 for field in data_type.fields:
-                    if not isinstance(field, SymbolField):
-                        assert_type = ("assert isinstance({0}, {1}), '{0} must be of type {1}'"
-                            .format(
-                                field.name,
-                                self._is_instance_type(field.data_type)))
-                    else:
+                    if isinstance(field, SymbolField) or is_void_type(field.data_type):
                         assert_type = ("assert isinstance({0}, {1}), '{0} must be of type {2}'"
                             .format(
                                 field.name,
                                 'bool',
                                 'bool'))
+                    else:
+                        assert_type = ("assert isinstance({0}, {1}), '{0} must be of type {1}'"
+                            .format(
+                                field.name,
+                                self._is_instance_type(field.data_type)))
                     self.emit_line('if {} is not None:'.format(field.name))
                     with self.indent():
                         self.emit_line(assert_type)
@@ -541,7 +557,7 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
                 self.emit_line('obj = copy.copy(obj)')
             self.emit_line("assert len(obj) == 1, 'One key must be set, not %d' % len(obj)")
             for field in data_type.all_fields:
-                if isinstance(field, SymbolField):
+                if isinstance(field, SymbolField) or is_void_type(field.data_type):
                     self.emit_line("if obj == '{}':".format(field.name))
                     with self.indent():
                         self.emit_line('return obj')
@@ -566,7 +582,7 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
             for field in data_type.all_fields:
                 self.emit_line("if self._tag == '{}':".format(field.name))
                 with self.indent():
-                    if isinstance(field, SymbolField):
+                    if isinstance(field, SymbolField) or is_void_type(field.data_type):
                         self.emit_line('return self._tag')
                     else:
                         self.emit_line('return dict({0}=self.{0}.to_json())'.format(field.name))
@@ -648,7 +664,7 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
             # Code to make the request
             self.emit_line('r = self._dropbox.request', trailing_newline=False)
             args = [host,
-                    "'{}/{}'".format(namespace.name, route.path),
+                    "'{}/{}'".format(namespace.name, route.name),
                     style,
                     'o']
             if request_binary_body:
@@ -720,7 +736,7 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
             # Code to make the request
             self.emit_line('r = self._dropbox.request', trailing_newline=False)
             args = [host,
-                    "'{}/{}'".format(namespace.name, route.path),
+                    "'{}/{}'".format(namespace.name, route.name),
                     style,
                     'o']
             if request_binary_body:
@@ -784,7 +800,7 @@ class DbxPythonSDKGenerator(CodeGeneratorMonolingual):
             args.append('f')
         if not is_null_type(request_data_type):
             for field in request_data_type.all_fields:
-                if field.optional or field.nullable:
+                if is_nullable_type(field.data_type) or field.has_default:
                     if field.has_default:
                         arg = '{}={}'.format(field.name, self.lang.format_obj(field.default))
                         args.append(arg)

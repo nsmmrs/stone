@@ -102,7 +102,13 @@ class Compiler(object):
                 self._logger.info('Running generator: %s', attr_value.__name__)
                 generator = attr_value(self.build_path, self.generator_args)
                 try:
-                    generator.generate(self.api)
+                    generate_args = inspect.getfullargspec(generator.generate).args
+                    if len(generate_args) == 1:
+                        # Support legacy generators that expect no arguments.
+                        generator.api = self.api
+                        generator.generate()
+                    else:
+                        generator.generate(self.api)
                 except:
                     # Wrap this exception so that it isn't thought of as a bug
                     # in the babel parser, but rather a bug in the generator.

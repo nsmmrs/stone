@@ -1,7 +1,10 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 from collections import OrderedDict
-from distutils.version import StrictVersion
+try:
+    from distutils.version import StrictVersion
+except ImportError:
+    from setuptools._distutils.version import StrictVersion
 import six
 
 from babelapi.data_type import (

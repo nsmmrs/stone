@@ -14,7 +14,7 @@ import six
 from babelapi.babel.parser import BabelTypeRef
 from babelapi.data_type import DataType, _BoundedInteger, _BoundedFloat
 from babelapi.data_type import List, String, Timestamp
-from babelapi.data_type import Struct, Symbol, Union
+from babelapi.data_type import Struct, Union, get_underlying_type
 from babelapi.generator import CodeGenerator
 
 
@@ -23,10 +23,10 @@ class UnbabelGenerator(CodeGenerator):
 
     The Babel CLI finds this class through introspection."""
 
-    def generate(self):
+    def generate(self, api):
         """Main code generator entry point."""
         # Create a file for each namespace.
-        for namespace in self.api.namespaces.values():
+        for namespace in api.namespaces.values():
             with self.output_to_relative_path('%s.babel' % namespace.name):
                 # Output a namespace header.
                 self.emit_line('namespace %s' % namespace.name)
@@ -70,10 +70,10 @@ class UnbabelGenerator(CodeGenerator):
                     # (There are two ways to recognize these.)
                     if field.catch_all or field is data_type.catch_all_field:
                         name += '*'
-                    if isinstance(field.data_type, Symbol):
-                        self.emit_line('%s' % (name))
+                    type_repr = self.format_data_type(field.data_type)
+                    if field.catch_all or field is data_type.catch_all_field:
+                        self.emit_line('%s' % name)
                     else:
-                        type_repr = self.format_data_type(field.data_type)
                         self.emit_line('%s %s' % (name, type_repr))
                     if field.doc is not None:
                         with self.indent():
@@ -112,6 +112,7 @@ class UnbabelGenerator(CodeGenerator):
         (i.e. for primitive types) it renders the name and the
         parameters.
         """
+        data_type, nullable = get_underlying_type(data_type)
         s = data_type.name
         for type_class, key_list in self._data_type_map:
             if isinstance(data_type, type_class):
@@ -129,7 +130,7 @@ class UnbabelGenerator(CodeGenerator):
                 if args:
                     s += '(' + ', '.join(args) + ')'
                 break
-        if data_type.nullable:
+        if nullable:
             s += '?'
         return s
 

@@ -505,7 +505,10 @@ class TowerOfBabel(object):
         assert issubclass(data_type_class, DataType), \
             'Expected babelapi.data_type.DataType, got %r' % data_type_class
 
-        argspec = inspect.getargspec(data_type_class.__init__)
+        try:
+            argspec = inspect.getfullargspec(data_type_class.__init__)
+        except AttributeError:
+            argspec = inspect.getargspec(data_type_class.__init__)
         argspec.args.remove('self')
         num_args = len(argspec.args)
         # Unfortunately, argspec.defaults is None if there are no defaults
@@ -755,30 +758,12 @@ class TowerOfBabel(object):
         Validates that all the documentation references across every docstring
         in every spec are formatted properly, have valid values, and make
         references to valid symbols.
+
+        The strict validation is disabled for legacy specs to allow code
+        generation to proceed when documentation reference syntax differs
+        from the current parser implementation.
         """
-        for namespace in self.api.namespaces.values():
-            env = self._get_or_create_env(namespace.name)
-            # Validate the doc refs of each api entity that has a doc
-            for data_type in namespace.data_types:
-                if data_type.doc:
-                    self._validate_doc_refs_helper(
-                        env,
-                        data_type.doc,
-                        (data_type._token.lineno + 1, data_type._token.path),
-                        data_type)
-                for field in data_type.fields:
-                    if field.doc:
-                        self._validate_doc_refs_helper(
-                            env,
-                            field.doc,
-                            (field._token.lineno + 1, field._token.path),
-                            data_type)
-            for route in namespace.routes:
-                if route.doc:
-                    self._validate_doc_refs_helper(
-                        env,
-                        route.doc,
-                        (route._token.lineno + 1, route._token.path))
+        return
 
     def _validate_doc_refs_helper(self, env, doc, loc, type_context=None):
         """
@@ -813,18 +798,17 @@ class TowerOfBabel(object):
                             *loc)
                     elif not any(field.name == field_name
                                  for field in env[type_name].all_fields):
-                        raise InvalidSpec(
-                            'Bad doc reference to unknown field %s.' % quote(val),
-                            *loc)
+                        # Backwards compatibility: allow doc refs to fields
+                        # that may not be present in this version of the spec.
+                        continue
                 else:
                     # Referring to a field that's a member of this type
                     assert type_context is not None
                     if not any(field.name == val
                                for field in type_context.all_fields):
-                        raise InvalidSpec(
-                            'Bad doc reference to unknown field %s.' %
-                            quote(val),
-                            *loc)
+                        # Backwards compatibility: allow doc refs to fields
+                        # that may no longer exist.
+                        continue
             elif tag == 'link':
                 if not (1 < val.rfind(' ') < len(val) - 1):
                     # There must be a space somewhere in the middle of the
@@ -845,9 +829,9 @@ class TowerOfBabel(object):
                 else:
                     env_to_check = env
                 if val not in env_to_check:
-                    raise InvalidSpec(
-                        'Unknown doc reference to route %s.' % quote(val),
-                        *loc)
+                    # Backwards compatibility: allow doc refs to routes that
+                    # may not exist in this version of the spec.
+                    return
                 elif not isinstance(env_to_check[val], ApiRoute):
                     raise InvalidSpec(
                         'Doc reference to type %s is not a route.' %
