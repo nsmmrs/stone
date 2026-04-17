@@ -1,0 +1,10 @@
+services:
+  stone2:
+    build: .
+    image: stone-python2
+    volumes:
+      - .:/workspace:Z
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    command: bash

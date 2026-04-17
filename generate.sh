@@ -1,0 +1,1 @@
+docker compose run --rm stone2 bash -lc 'set -euo pipefail; python --version; for g in example/generator/*/*.babelg.py; do echo "\n=== GENERATOR: $g ==="; python -m babelapi.cli "$g" example/api/dbx-core/files.babel example/api/dbx-core/users.babel example/generator/$(basename $(dirname "$g")); done'
